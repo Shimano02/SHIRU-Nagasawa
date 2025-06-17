@@ -434,7 +434,11 @@ async function sendMessage(userInput, files = []) {
       const full = await response.json();
       const bot  = addMessage("", "bot");
       bot.innerHTML = DOMPurify.sanitize(marked.parse(full.answer ?? ""));
-      bot.scrollIntoView({ block: "start" });
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        bot.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+      } else {
+        bot.scrollIntoView({ block: "start" });
+      }
       attachTTSButton(bot, full.answer ?? "");
       (full.retriever_resources || []).forEach(addCitation);
       guessMediaCitations(full.answer ?? "");
@@ -465,7 +469,15 @@ async function sendMessage(userInput, files = []) {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
         botDiv.innerHTML = DOMPurify.sanitize(marked.parse(answerBuf));
-        botDiv.scrollIntoView({ block: "start" });
+        if (window.matchMedia("(max-width: 768px)").matches) {
+          botDiv.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+        } else {
+          if (window.matchMedia("(max-width: 768px)").matches) {
+      botDiv.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+    } else {
+      botDiv.scrollIntoView({ block: "start" });
+    }
+        }
         rafId = null;
       });
     };
@@ -514,7 +526,11 @@ async function sendMessage(userInput, files = []) {
     /* ---- ストリーム完了：最終描画 ---- */
     cancelAnimationFrame(rafId);
     botDiv.innerHTML = DOMPurify.sanitize(marked.parse(answerBuf));
-    botDiv.scrollIntoView({ block: "start" });
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      botDiv.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+    } else {
+      botDiv.scrollIntoView({ block: "start" });
+    }
     attachTTSButton(botDiv, answerBuf);
 
     /* ---- 付随情報 ---- */
@@ -1058,7 +1074,11 @@ async function playBotResponse(text) {
    area.appendChild(div);
 
    if (sender === "bot") {
-     div.scrollIntoView({block:"start"});
+     if (window.matchMedia("(max-width: 768px)").matches) {
+       div.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+     } else {
+       div.scrollIntoView({block:"start"});
+     }
    } else {
      area.scrollTop = area.scrollHeight;
    }

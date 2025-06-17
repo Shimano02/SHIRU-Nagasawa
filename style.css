@@ -943,6 +943,31 @@ header nav a:hover {
 
 /* 768px以下（モバイル） */
 @media (max-width: 768px) {
+  header {
+    height: 60px;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  header .logo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  header .logo .main-title {
+    font-size: 1.2em;
+    line-height: 1.1;
+  }
+  
+  header .logo .sub-title {
+    font-size: 0.75em;
+    line-height: 1.1;
+  }
+
+
   header nav {
     display: none;
   }
@@ -993,7 +1018,8 @@ header nav a:hover {
   }
 
   .chat-messages {
-    max-height: 50vh;
+    max-height: 45vh;
+    padding-top: 10px;
     overflow-y: auto;
   }
 
@@ -1002,7 +1028,19 @@ header nav a:hover {
   }
 
   .message.bot {
-    max-height: 25vh;
+    max-height: 35vh;
+  
+  .message.bot::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .message.bot::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.3);
+    border-radius: 2px;
+  }
+
+    overflow-y: auto;
+    scrollbar-width: thin;
   } 
 
   /* メインチャット領域をフル幅に調整 */
