@@ -1014,7 +1014,10 @@ header nav a:hover {
   }
 
   #avatar-video {
-    top: 35%;
+    top: 0%;
+    transform: translate(-50%, 0%);
+    object-position: center top;
+    object-fit: contain;
   }
 
   .chat-messages {
@@ -1024,7 +1027,7 @@ header nav a:hover {
   }
 
   .message{
-    line-height: 1.35;         /* 好みで 1.3?1.5 程度 */
+    line-height: 1.35;
   }
 
   .message.bot {
@@ -1053,7 +1056,9 @@ header nav a:hover {
   }
 
    #avatar-video {
-     object-fit: cover;        /* モバイルは今まで通り中央トリミング */
+    top: 0%;
+    transform: translate(-50%, 0%);
+    object-fit: contain;
    }
 }
 
