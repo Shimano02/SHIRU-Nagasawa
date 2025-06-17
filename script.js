@@ -137,10 +137,10 @@ let avatarVideo   = null;
 let avatarAudio   = null;
 let isAvatarPlaying = false;
 
-const API_BASE    = "https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev";
+const API_BASE    = "http://127.0.0.1:8000";
 const TOKEN_KEY   = "accessToken";
 const REFRESH_KEY = "refreshToken";
-const MEDIA_API_BASE = "https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/media/";
+const MEDIA_API_BASE = "http://127.0.0.1:8000/media/";
 // 簡易的なインメモリキャッシュ
 const apiCache = {
   data: new Map(),
@@ -1561,7 +1561,7 @@ try {
       contentText = cachedData;
     } else {
       // docIdを明確にパラメータとして含むURLを使用
-      const detailUrl = `https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/files/detail?docId=${encodeURIComponent(docId)}`;
+      const detailUrl = `http://127.0.0.1:8000/files/detail?docId=${encodeURIComponent(docId)}`;
       
       const res = await apiFetch(detailUrl);
       if (!res.ok) {
@@ -1697,7 +1697,7 @@ async function fetchConversationList() {
     
     // 会話一覧を取得
     const resp = await apiFetch(
-      `https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/conversation-list?user=${encodeURIComponent(userEmail)}`,
+      `http://127.0.0.1:8000/conversation-list?user=${encodeURIComponent(userEmail)}`,
       {
         method: "GET",
         timeout: 10000  // 10秒タイムアウト
@@ -1906,7 +1906,7 @@ async function fetchConversationHistory(convId, convName) {
     
     // 履歴取得API呼び出し
     const resp = await apiFetch(
-      `https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/conversation-history?user=${encodeURIComponent(userEmail)}&conversation_id=${convId}`,
+      `http://127.0.0.1:8000/conversation-history?user=${encodeURIComponent(userEmail)}&conversation_id=${convId}`,
       {
         method: "GET",
         timeout: 15000  // 15秒タイムアウト
@@ -2139,7 +2139,7 @@ if (loginLink && loginModal && closeLoginModalButton && loginSubmitButton) {
     }
   
     try {
-      const response = await fetch("https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/app/api/login", {
+      const response = await fetch("http://127.0.0.1:8000/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2524,7 +2524,7 @@ async function tryRefresh() {
   if (!refresh) return false;
 
   try {
-    const resp = await fetch("https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/app/api/token/refresh", {
+    const resp = await fetch("http://127.0.0.1:8000/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh })
@@ -2629,7 +2629,7 @@ async function deleteFile(docId) {
   try {
     // ここでは、DELETEリクエストで削除を実行する例です。
     // ※エンドポイントのURLは、環境に合わせて修正してください。
-    const response = await apiFetch(`https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/datasets/your_dataset_id/documents/${docId}`, {
+    const response = await apiFetch(`http://127.0.0.1:8000/datasets/your_dataset_id/documents/${docId}`, {
       method: "DELETE"
     });
     if (!response.ok) {
@@ -2854,7 +2854,7 @@ function clearAllSystemMessages() {
 // API状態をチェックする関数
 async function checkApiStatus() {
   try {
-    const resp = await fetch("https://sirusiru-nishimura-seisaku.tsuji-090.workers.dev/api-status", {
+    const resp = await fetch("http://127.0.0.1:8000/api-status", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
