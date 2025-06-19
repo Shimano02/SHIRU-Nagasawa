@@ -137,7 +137,8 @@ let avatarVideo   = null;
 let avatarAudio   = null;
 let isAvatarPlaying = false;
 
-const API_BASE    = "http://127.0.0.1:8000";
+const API_BASE    = "https://api.dify.ai/v1";
+const DIFY_API_KEY = "app-7gjxfPQgNxwrP7L5Q0ti9W2R";
 const TOKEN_KEY   = "accessToken";
 const REFRESH_KEY = "refreshToken";
 const MEDIA_API_BASE = "http://127.0.0.1:8000/media/";
@@ -411,6 +412,9 @@ async function sendMessage(userInput, files = []) {
       ...(conversationId && { conversation_id: conversationId }),
       user          : localStorage.getItem("userEmail") || "guest",
       files
+      ,
+      inputs        : {},
+      auto_generate_name: true
     };
     const streamingChosen = supportsDuplex && payload.response_mode === "streaming";
 
@@ -436,7 +440,7 @@ async function sendMessage(userInput, files = []) {
       bot.innerHTML = DOMPurify.sanitize(marked.parse(full.answer ?? ""));
       bot.scrollIntoView({ block: "start" });
       attachTTSButton(bot, full.answer ?? "");
-      (full.retriever_resources || []).forEach(addCitation);
+      (full.metadata?.retriever_resources || full.retriever_resources || []).forEach(addCitation);
       guessMediaCitations(full.answer ?? "");
       lastBotResponse = full.answer ?? "";
       return lastBotResponse;
@@ -529,6 +533,11 @@ async function sendMessage(userInput, files = []) {
 
   } catch (e) {
     console.error("Error in sendMessage:", e);
+
+    if (e.message.includes("CORS") || e.message.includes("fetch")) {
+      addMessage("接続エラーが発生しました。Dify APIへの接続を確認してください。", "bot");
+      return;
+    }
 
     /* ★ streamingChosen のときだけ blocking へ自動フォールバック */
     if (supportsDuplex && e.name !== "AUTH_FAILED") {
@@ -2572,7 +2581,7 @@ async function apiFetch(url, options = {}) {
   if (opt.auth !== false) {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) throw new Error("UNAUTHENTICATED");
-    opt.headers.Authorization = `Bearer ${token}`;
+    opt.headers.Authorization = `Bearer ${DIFY_API_KEY}`;
   }
 
   return executeFetch(url, opt);
