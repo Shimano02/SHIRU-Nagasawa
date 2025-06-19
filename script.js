@@ -146,7 +146,7 @@ const isLocalDevelopment = () => {
 const API_CONFIG = {
   local: {
     base: "http://127.0.0.1:8000",
-    authType: "jwt",
+    authType: "none",
     endpoints: {
       login: "/auth/login",
       refresh: "/auth/refresh", 
@@ -158,7 +158,10 @@ const API_CONFIG = {
       conversationHistory: "/conversation-history",
       apiStatus: "/api-status",
       audioToText: "/audio-to-text",
-      textToAudio: "/text-to-audio"
+      textToAudio: "/text-to-audio",
+      tokenBalance: "/app/api/tokens/balance",
+      tokenConsume: "/app/api/tokens/consume",
+      subscriptionStatus: "/app/api/subscription/status"
     }
   },
   dify: {
@@ -176,13 +179,27 @@ const API_CONFIG = {
 
 const getCurrentConfig = () => {
   return isLocalDevelopment() ? API_CONFIG.local : API_CONFIG.dify;
-};
 
-const API_BASE = getCurrentConfig().base;
+
+};
+window.getCurrentConfig = getCurrentConfig;
+
+
+const getApiBase = () => getCurrentConfig().base;
+let API_BASE = ""; // Will be set dynamically
 const DIFY_API_KEY = API_CONFIG.dify.apiKey;
 const TOKEN_KEY   = "accessToken";
 const REFRESH_KEY = "refreshToken";
-const MEDIA_API_BASE = `${getCurrentConfig().base}/media/`;
+const getMediaApiBase = () => `${getCurrentConfig().base}/media/`;
+let MEDIA_API_BASE = ""; // Will be set dynamically
+const initializeApiConstants = () => {
+  API_BASE = getApiBase();
+  MEDIA_API_BASE = getMediaApiBase();
+};
+
+initializeApiConstants();
+
+
 // 簡易的なインメモリキャッシュ
 const apiCache = {
   data: new Map(),
@@ -443,6 +460,10 @@ async function processInput(inputText, audioFile, uploadedFileId = null) {
 async function sendMessage(userInput, files = []) {
   try {
     startLoadingState();
+    if (!userInput || typeof userInput !== 'string') {
+      throw new Error('Invalid input: userInput is required and must be a string');
+    }
+
 
     /* ---------- payload & response_mode 選択 ---------- */
     const payload = {
@@ -587,7 +608,7 @@ async function sendMessage(userInput, files = []) {
     }
 
     /* ★ streamingChosen のときだけ blocking へ自動フォールバック */
-    if (supportsDuplex && e.name !== "AUTH_FAILED") {
+    if (supportsDuplex && e.name !== "AUTH_FAILED" && typeof payload !== 'undefined') {
       try {
         const botDiv = addMessage("", "bot");          // fallback 用
         return await fetchBlocking(payload, botDiv);
@@ -2341,12 +2362,25 @@ async function fetchRemainingTokens() {
     
     if (cachedData !== null) {
       return cachedData;
+    
+    if (isLocalDevelopment()) {
+      const balObj = {
+        total: 999999,
+        chat: 999999,
+        image: 999999
+      };
+      console.log("残りトークン数 (ローカル開発):", balObj);
+      apiCache.set(cacheKey, balObj, 5 * 60 * 1000);
+      return balObj;
+    }
+
     }
     
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return null;           // 未ログインなら呼ばない
 
-    const resp = await apiFetch("/app/api/tokens/balance", {
+    const config = getCurrentConfig();
+    const resp = await apiFetch(`${config.base}${config.endpoints.tokenBalance}`, {
       auth   : false,                  // ← apiFetch に任せず手動で
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -2370,7 +2404,7 @@ async function fetchRemainingTokens() {
 
     const data = await resp.json();          // { total, products:{…} }
     const balObj = {
-      total : data.total,
+      total : getCurrentConfig().authType === 'jwt' ? data.balance : data.total,
       chat  : data.products?.[PRODUCT_CHAT]  ?? 0,
       image : data.products?.[PRODUCT_IMAGE] ?? 0
     };
@@ -2429,7 +2463,7 @@ async function consumeTokens(amount) {
 
     const data = await resp.json();          // { total, products:{…} }
     const balObj = {
-      total : data.total,
+      total : getCurrentConfig().authType === 'jwt' ? data.balance : data.total,
       chat  : data.products?.[PRODUCT_CHAT]  ?? 0,
       image : data.products?.[PRODUCT_IMAGE] ?? 0
     };
@@ -2754,7 +2788,8 @@ async function validateTokenSilently() {
     // 軽量なAPIエンドポイントを叩いて有効性確認
     const token = localStorage.getItem("accessToken");
     if (!token) return;                // ← トークンが無ければチェックしない
-    const resp = await apiFetch("/app/api/tokens/balance", {
+    const config = getCurrentConfig();
+    const resp = await apiFetch(`${config.base}${config.endpoints.tokenBalance}`, {
       method : "GET",
       // ここは手動でトークンを渡し、apiFetch には二重付与させない
       auth   : false,
