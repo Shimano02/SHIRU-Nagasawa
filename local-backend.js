@@ -178,6 +178,31 @@ app.get('/api-status', (req, res) => {
   });
 });
 
+app.get('/app/api/tokens/balance', (req, res) => {
+  res.json({
+    balance: 1000,
+    currency: "tokens",
+    status: "active"
+  });
+});
+
+app.post('/app/api/tokens/consume', (req, res) => {
+  const { amount = 1 } = req.body;
+  res.json({
+    consumed: amount,
+    remaining: 999,
+    status: "success"
+  });
+});
+
+app.get('/app/api/subscription/status', (req, res) => {
+  res.json({
+    status: "active",
+    plan: "premium",
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  });
+});
+
 app.use('/media', express.static(path.join(__dirname, 'media')));
 
 app.listen(PORT, () => {
