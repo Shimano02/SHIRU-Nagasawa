@@ -146,7 +146,7 @@ const isLocalDevelopment = () => {
 const API_CONFIG = {
   local: {
     base: "http://127.0.0.1:8000",
-    authType: "none",
+    authType: "jwt",
     endpoints: {
       login: "/auth/login",
       refresh: "/auth/refresh", 
