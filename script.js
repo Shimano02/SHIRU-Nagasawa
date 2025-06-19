@@ -137,11 +137,52 @@ let avatarVideo   = null;
 let avatarAudio   = null;
 let isAvatarPlaying = false;
 
-const API_BASE    = "https://api.dify.ai/v1";
-const DIFY_API_KEY = "app-7gjxfPQgNxwrP7L5Q0ti9W2R";
+const isLocalDevelopment = () => {
+  return window.location.hostname === 'localhost' || 
+         window.location.hostname === '127.0.0.1' ||
+         window.location.hostname === '0.0.0.0';
+};
+
+const API_CONFIG = {
+  local: {
+    base: "http://127.0.0.1:8000",
+    authType: "jwt",
+    endpoints: {
+      login: "/auth/login",
+      refresh: "/auth/refresh", 
+      chatMessages: "/chat-messages",
+      fileUpload: "/files/upload",
+      fileDetail: "/files/detail",
+      filesList: "/files/list",
+      conversationList: "/conversation-list",
+      conversationHistory: "/conversation-history",
+      apiStatus: "/api-status",
+      audioToText: "/audio-to-text",
+      textToAudio: "/text-to-audio"
+    }
+  },
+  dify: {
+    base: "https://api.dify.ai/v1",
+    authType: "dify",
+    apiKey: "app-7gjxfPQgNxwrP7L5Q0ti9W2R",
+    endpoints: {
+      chatMessages: "/chat-messages",
+      fileUpload: "/files/upload",
+      fileDetail: "/files/detail",
+      filesList: "/files/list"
+    }
+  }
+};
+
+const getCurrentConfig = () => {
+  return isLocalDevelopment() ? API_CONFIG.local : API_CONFIG.dify;
+};
+
+const API_BASE = getCurrentConfig().base;
+const DIFY_API_KEY = API_CONFIG.dify.apiKey;
 const TOKEN_KEY   = "accessToken";
 const REFRESH_KEY = "refreshToken";
-const MEDIA_API_BASE = "http://127.0.0.1:8000/media/";
+const MEDIA_API_BASE = `${getCurrentConfig().base}/media/`;
 // 簡易的なインメモリキャッシュ
 const apiCache = {
   data: new Map(),
@@ -430,7 +471,8 @@ async function sendMessage(userInput, files = []) {
     };
     if (streamingChosen) opt.duplex = "half";
 
-    const response = await apiFetch(`${API_BASE}/chat-messages`, opt);
+    const config = getCurrentConfig();
+    const response = await apiFetch(`${config.base}${config.endpoints.chatMessages}`, opt);
     if (!response.ok) throw new Error(await response.text());
 
     /* ---------- blocking だけならここで完了 ---------- */
@@ -440,7 +482,12 @@ async function sendMessage(userInput, files = []) {
       bot.innerHTML = DOMPurify.sanitize(marked.parse(full.answer ?? ""));
       bot.scrollIntoView({ block: "start" });
       attachTTSButton(bot, full.answer ?? "");
-      (full.metadata?.retriever_resources || full.retriever_resources || []).forEach(addCitation);
+      const config = getCurrentConfig();
+      if (config.authType === 'dify') {
+        (full.metadata?.retriever_resources || []).forEach(addCitation);
+      } else {
+        (full.retriever_resources || []).forEach(addCitation);
+      }
       guessMediaCitations(full.answer ?? "");
       lastBotResponse = full.answer ?? "";
       return lastBotResponse;
@@ -1570,7 +1617,8 @@ try {
       contentText = cachedData;
     } else {
       // docIdを明確にパラメータとして含むURLを使用
-      const detailUrl = `http://127.0.0.1:8000/files/detail?docId=${encodeURIComponent(docId)}`;
+      const config = getCurrentConfig();
+      const detailUrl = `${config.base}${config.endpoints.fileDetail}?docId=${encodeURIComponent(docId)}`;
       
       const res = await apiFetch(detailUrl);
       if (!res.ok) {
@@ -1706,7 +1754,7 @@ async function fetchConversationList() {
     
     // 会話一覧を取得
     const resp = await apiFetch(
-      `http://127.0.0.1:8000/conversation-list?user=${encodeURIComponent(userEmail)}`,
+      `${getCurrentConfig().base}${getCurrentConfig().endpoints.conversationList}?user=${encodeURIComponent(userEmail)}`,
       {
         method: "GET",
         timeout: 10000  // 10秒タイムアウト
@@ -1915,7 +1963,7 @@ async function fetchConversationHistory(convId, convName) {
     
     // 履歴取得API呼び出し
     const resp = await apiFetch(
-      `http://127.0.0.1:8000/conversation-history?user=${encodeURIComponent(userEmail)}&conversation_id=${convId}`,
+      `${getCurrentConfig().base}${getCurrentConfig().endpoints.conversationHistory}?user=${encodeURIComponent(userEmail)}&conversation_id=${convId}`,
       {
         method: "GET",
         timeout: 15000  // 15秒タイムアウト
@@ -2148,7 +2196,17 @@ if (loginLink && loginModal && closeLoginModalButton && loginSubmitButton) {
     }
   
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/login", {
+      const config = getCurrentConfig();
+      
+      if (config.authType === 'dify') {
+        loginSuccess({
+          access_token: "dify-session",
+          user: { email: "dify-user@shirushiru.com", roles: ["user"], tenant_id: "1" }
+        });
+        return;
+      }
+      
+      const response = await fetch(`${config.base}${config.endpoints.login}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2533,7 +2591,13 @@ async function tryRefresh() {
   if (!refresh) return false;
 
   try {
-    const resp = await fetch("http://127.0.0.1:8000/auth/refresh", {
+    const config = getCurrentConfig();
+    
+    if (config.authType === 'dify') {
+      return true;
+    }
+    
+    const resp = await fetch(`${config.base}${config.endpoints.refresh}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh })
@@ -2581,7 +2645,14 @@ async function apiFetch(url, options = {}) {
   if (opt.auth !== false) {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) throw new Error("UNAUTHENTICATED");
-    opt.headers.Authorization = `Bearer ${DIFY_API_KEY}`;
+    const config = getCurrentConfig();
+    if (config.authType === 'dify') {
+      opt.headers.Authorization = `Bearer ${config.apiKey}`;
+    } else {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) throw new Error("UNAUTHENTICATED");
+      opt.headers.Authorization = `Bearer ${token}`;
+    }
   }
 
   return executeFetch(url, opt);
@@ -2638,7 +2709,8 @@ async function deleteFile(docId) {
   try {
     // ここでは、DELETEリクエストで削除を実行する例です。
     // ※エンドポイントのURLは、環境に合わせて修正してください。
-    const response = await apiFetch(`http://127.0.0.1:8000/datasets/your_dataset_id/documents/${docId}`, {
+    const config = getCurrentConfig();
+    const response = await apiFetch(`${config.base}/datasets/your_dataset_id/documents/${docId}`, {
       method: "DELETE"
     });
     if (!response.ok) {
@@ -2863,7 +2935,8 @@ function clearAllSystemMessages() {
 // API状態をチェックする関数
 async function checkApiStatus() {
   try {
-    const resp = await fetch("http://127.0.0.1:8000/api-status", {
+    const config = getCurrentConfig();
+    const resp = await fetch(`${config.base}${config.endpoints.apiStatus}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -3336,7 +3409,8 @@ async function fetchBlocking(payload, botDiv, attempt=0){
     botDiv.innerHTML = "? 返答を取得できませんでした。もう一度お試しください。";
     return "";
   }
-  const res = await apiFetch(`${API_BASE}/chat-messages`, {
+  const config = getCurrentConfig();
+  const res = await apiFetch(`${config.base}${config.endpoints.chatMessages}`, {
       method : "POST",
       headers: { "Content-Type":"application/json","Accept":"application/json" },
       body   : JSON.stringify({...payload, response_mode:"blocking" }),
