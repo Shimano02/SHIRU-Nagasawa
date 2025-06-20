@@ -53,57 +53,121 @@ app.post('/auth/refresh', (req, res) => {
 app.post('/chat-messages', (req, res) => {
   const { query, response_mode, conversation_id, user, files } = req.body;
   
+  console.log('=== CHAT MESSAGE REQUEST RECEIVED ===');
+  console.log('Query:', query);
+  console.log('Response mode:', response_mode);
+  console.log('Conversation ID:', conversation_id);
+  console.log('User:', user);
+  console.log('Files:', files);
+  
   if (response_mode === 'streaming') {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control'
-    });
-
-    const mockResponse = `こんにちは！「${query}」についてお答えします。これはローカル開発環境でのモック応答です。`;
-    const words = mockResponse.split('');
+    console.log('=== STARTING STREAMING MODE ===');
     
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(200);
+
+    const convId = conversation_id || 'conv-' + Date.now();
+    const msgId = 'msg-' + Date.now();
+    
+    console.log('=== SETTING UP STREAMING RESPONSE ===');
+    console.log('Conversation ID:', convId);
+    console.log('Message ID:', msgId);
+    
+    const fullResponse = `こんにちは！「${query}」についてお答えします。これはローカル開発環境でのストリーミング応答です。正常に動作しています。`;
+    const characters = fullResponse.split('');
     let index = 0;
-    const streamInterval = setInterval(() => {
-      if (index < words.length) {
+    
+    console.log('=== CREATING STREAMING INTERVAL ===');
+    console.log('Total characters to stream:', characters.length);
+    
+    console.log('=== ABOUT TO CREATE INTERVAL ===');
+    
+    console.log('=== TESTING IMMEDIATE EXECUTION ===');
+    console.log('Response object state:', {
+      headersSent: res.headersSent,
+      finished: res.finished,
+      destroyed: res.destroyed,
+      writable: res.writable
+    });
+    
+    try {
+      const testChunk = { answer: "テ" };
+      console.log('Sending immediate test chunk:', JSON.stringify(testChunk));
+      res.write(`data: ${JSON.stringify(testChunk)}\n\n`);
+      console.log('Immediate test chunk sent successfully');
+    } catch (error) {
+      console.error('Error sending immediate test chunk:', error);
+      return;
+    }
+    
+    console.log('=== TESTING DIRECT SETTIMEOUT ===');
+    setTimeout(() => {
+      console.log('=== SETTIMEOUT CALLBACK EXECUTED ===');
+      console.log('This proves Node.js timers work');
+    }, 100);
+    
+    console.log('=== SWITCHING TO IMMEDIATE STREAMING ===');
+    
+    function sendNextChunk() {
+      console.log(`=== STREAMING CHUNK ${index} ===`);
+      console.log('Current index:', index, 'Total characters:', characters.length);
+      
+      if (index < characters.length) {
         const chunk = {
-          event: 'message',
-          conversation_id: conversation_id || 'conv-' + Date.now(),
-          message_id: 'msg-' + Date.now(),
-          answer: words[index]
+          answer: characters[index]
         };
         
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        index++;
+        console.log('Sending chunk:', JSON.stringify(chunk));
+        try {
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          console.log('Chunk sent successfully');
+          index++;
+          
+          setTimeout(sendNextChunk, 50);
+        } catch (error) {
+          console.error('Error writing chunk:', error);
+          return;
+        }
       } else {
+        console.log('=== SENDING FINAL CHUNK AND DONE ===');
         const finalChunk = {
-          event: 'message_end',
-          conversation_id: conversation_id || 'conv-' + Date.now(),
-          message_id: 'msg-' + Date.now(),
-          metadata: {
-            retriever_resources: [
-              {
-                position: 1,
-                dataset_id: "mock-dataset",
-                dataset_name: "ローカルテストデータ",
-                document_id: "mock-doc-1",
-                document_name: "サンプル文書.pdf",
-                content: "これはローカル開発環境でのサンプル引用です。"
-              }
-            ]
-          }
+          conversation_id: convId,
+          message_id: msgId,
+          retriever_resources: [
+            {
+              position: 1,
+              dataset_id: "mock-dataset",
+              dataset_name: "ローカルテストデータ",
+              document_id: "mock-doc-1",
+              document_name: "サンプル文書.pdf",
+              content: "これはローカル開発環境でのサンプル引用です。"
+            }
+          ]
         };
         
-        res.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
-        res.end();
-        clearInterval(streamInterval);
+        console.log('Sending final chunk:', JSON.stringify(finalChunk));
+        try {
+          res.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
+          console.log('Sending [DONE] marker');
+          res.write(`data: [DONE]\n\n`);
+          console.log('Ending response and clearing interval');
+          res.end();
+        } catch (error) {
+          console.error('Error writing final chunk:', error);
+        }
       }
-    }, 50);
+    }
+    
+    setTimeout(sendNextChunk, 50);
+    
+    console.log('=== RECURSIVE TIMEOUT STARTED ===');
 
     req.on('close', () => {
-      clearInterval(streamInterval);
+      console.log('Request closed - streaming will stop naturally');
     });
     
   } else {
