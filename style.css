@@ -1015,7 +1015,7 @@ header nav a:hover {
   }
 
    #avatar-video {
-     object-fit: cover;        /* モバイルは今まで通り中央トリミング */
+     object-fit: contain;      /* モバイルでも全体を表示（頭が切れないように修正） */
    }
 }
 
